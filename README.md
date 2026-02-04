@@ -14,12 +14,8 @@ Mixture of Experts (MoE) architectures have demonstrated remarkable success in s
 
 ---
 
-
----
-
 ## Introduction
 
-### Background
 
 **Mixture of Experts (MoE)** models partition the input space among specialized sub-networks (experts), with a gating mechanism that routes each input to a subset of experts. This approach enables conditional computation, where only a fraction of model parameters are activated for any given input, allowing for significant scaling of model capacity without proportional increases in computational cost (Shazeer et al., 2017; Fedus et al., 2022).
 
@@ -42,8 +38,6 @@ This formulation provides several theoretical and practical advantages:
 ---
 
 ## Architecture
-
-### High-Level Overview
 
 ```
                                     +------------------+
@@ -456,7 +450,9 @@ Where: B = batch size, L = sequence length, E = num experts, k = num selected, N
 ### Memory Efficiency
 
 Compared to dense models with equivalent expressiveness, FM-MoE achieves:
+
 - **Active Parameters**: k/E fraction of total parameters per forward pass
+
 - **Memory Scaling**: Sub-linear with number of experts due to sparse activation
 
 ---
@@ -469,7 +465,7 @@ If you use this implementation in your research, please cite:
 @software{gomez2024fmmoe,
   author       = {Gomez, Kye},
   title        = {Flow Matching Mixture of Experts: Continuous Normalizing Flows for Sparse Expert Networks},
-  year         = {2024},
+  year         = {2026},
   publisher    = {The Swarm Corporation},
   url          = {https://github.com/The-Swarm-Corporation/MoF}
 }
@@ -528,5 +524,7 @@ This implementation builds upon foundational work in mixture of experts architec
 ## Author
 
 **Kye Gomez**  
+
 The Swarm Corporation  
+
 [GitHub](https://github.com/The-Swarm-Corporation)
