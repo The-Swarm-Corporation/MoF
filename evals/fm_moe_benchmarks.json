@@ -1,0 +1,87 @@
+{
+  "configs": [
+    {
+      "name": "small",
+      "config": {
+        "input_dim": 128,
+        "hidden_dim": 256,
+        "num_experts": 4,
+        "name": "small"
+      },
+      "forward_time_ms": 11.964847333729267,
+      "throughput": 21396.010568252572,
+      "parameters": 596992,
+      "model_size_mb": 2.27734375
+    },
+    {
+      "name": "medium",
+      "config": {
+        "input_dim": 256,
+        "hidden_dim": 512,
+        "num_experts": 8,
+        "name": "medium"
+      },
+      "forward_time_ms": 32.75490265029172,
+      "throughput": 7815.623900128429,
+      "parameters": 4485120,
+      "model_size_mb": 17.109375
+    },
+    {
+      "name": "large",
+      "config": {
+        "input_dim": 512,
+        "hidden_dim": 1024,
+        "num_experts": 16,
+        "name": "large"
+      },
+      "forward_time_ms": 95.05591696749131,
+      "throughput": 2693.151653963328,
+      "parameters": 34717696,
+      "model_size_mb": 132.4375
+    }
+  ],
+  "batch_scaling": [
+    {
+      "batch_size": 1,
+      "forward_time_ms": 13.77038867212832,
+      "throughput": 4647.653855227625
+    },
+    {
+      "batch_size": 4,
+      "forward_time_ms": 25.503666683410604,
+      "throughput": 10037.772339869882
+    },
+    {
+      "batch_size": 8,
+      "forward_time_ms": 37.08798570247988,
+      "throughput": 13805.009635930843
+    },
+    {
+      "batch_size": 16,
+      "forward_time_ms": 52.07722230503956,
+      "throughput": 19663.107106634343
+    }
+  ],
+  "sequence_scaling": [
+    {
+      "seq_length": 32,
+      "forward_time_ms": 18.045305740088224,
+      "throughput": 7093.257484446157
+    },
+    {
+      "seq_length": 64,
+      "forward_time_ms": 24.604583391919732,
+      "throughput": 10404.56552026285
+    },
+    {
+      "seq_length": 128,
+      "forward_time_ms": 36.95719502866268,
+      "throughput": 13853.865251486512
+    },
+    {
+      "seq_length": 256,
+      "forward_time_ms": 49.69248625760277,
+      "throughput": 20606.737096865054
+    }
+  ]
+}

@@ -83,13 +83,9 @@ class SinusoidalTimeEmbedding(nn.Module):
 
         half_dim = self.embed_dim // 2
         embeddings = math.log(10000) / (half_dim - 1)
-        embeddings = torch.exp(
-            torch.arange(half_dim, device=time.device) * -embeddings
-        )
+        embeddings = torch.exp(torch.arange(half_dim, device=time.device) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]
-        embeddings = torch.cat(
-            [torch.sin(embeddings), torch.cos(embeddings)], dim=-1
-        )
+        embeddings = torch.cat([torch.sin(embeddings), torch.cos(embeddings)], dim=-1)
 
         return embeddings
 
@@ -140,9 +136,7 @@ class FlowMatchingExpert(nn.Module):
         nn.init.zeros_(self.network[-1].weight)
         nn.init.zeros_(self.network[-1].bias)
 
-    def forward(
-        self, x: torch.Tensor, t: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
         Compute velocity field at position x and time t.
 
@@ -164,9 +158,7 @@ class FlowMatchingExpert(nn.Module):
 
         return velocity
 
-    def flow_transform(
-        self, x: torch.Tensor, steps: int = 10
-    ) -> torch.Tensor:
+    def flow_transform(self, x: torch.Tensor, steps: int = 10) -> torch.Tensor:
         """
         Apply flow transformation via Euler integration.
 
@@ -187,9 +179,7 @@ class FlowMatchingExpert(nn.Module):
 
         for step in range(steps):
             t = step * dt
-            t_batch = torch.full(
-                (batch_size,), t, device=device, dtype=x.dtype
-            )
+            t_batch = torch.full((batch_size,), t, device=device, dtype=x.dtype)
 
             # Compute velocity at current point
             v_t = self.forward(x_t, t_batch)
@@ -213,9 +203,7 @@ class Router(nn.Module):
         num_selected: Number of top experts to select per token
     """
 
-    def __init__(
-        self, input_dim: int, num_experts: int, num_selected: int
-    ):
+    def __init__(self, input_dim: int, num_experts: int, num_selected: int):
         super().__init__()
         self.num_experts = num_experts
         self.num_selected = num_selected
@@ -251,20 +239,14 @@ class Router(nn.Module):
         all_probs = F.softmax(logits, dim=-1)
 
         # Select top-k experts
-        top_k_probs, top_k_indices = torch.topk(
-            all_probs, self.num_selected, dim=-1
-        )
+        top_k_probs, top_k_indices = torch.topk(all_probs, self.num_selected, dim=-1)
 
         # Normalize selected probabilities
-        top_k_probs = top_k_probs / (
-            top_k_probs.sum(dim=-1, keepdim=True) + 1e-9
-        )
+        top_k_probs = top_k_probs / (top_k_probs.sum(dim=-1, keepdim=True) + 1e-9)
 
         return top_k_probs, top_k_indices, all_probs
 
-    def compute_router_z_loss(
-        self, logits: torch.Tensor
-    ) -> torch.Tensor:
+    def compute_router_z_loss(self, logits: torch.Tensor) -> torch.Tensor:
         """
         Compute router z-loss to encourage smaller logits.
 
@@ -280,9 +262,7 @@ class Router(nn.Module):
         z_loss = torch.mean(log_z**2)
         return z_loss
 
-    def compute_load_balance_loss(
-        self, probs: torch.Tensor
-    ) -> torch.Tensor:
+    def compute_load_balance_loss(self, probs: torch.Tensor) -> torch.Tensor:
         """
         Compute load balancing loss to encourage uniform expert usage.
 
@@ -389,15 +369,9 @@ class FlowMatchingMoE(nn.Module):
         output = torch.zeros_like(x)
 
         # Reshape for easier processing
-        x_flat = x.view(
-            -1, input_dim
-        )  # (batch_size * seq_len, input_dim)
-        top_k_probs_flat = top_k_probs.view(
-            -1, self.config.num_selected
-        )
-        top_k_indices_flat = top_k_indices.view(
-            -1, self.config.num_selected
-        )
+        x_flat = x.view(-1, input_dim)  # (batch_size * seq_len, input_dim)
+        top_k_probs_flat = top_k_probs.view(-1, self.config.num_selected)
+        top_k_indices_flat = top_k_indices.view(-1, self.config.num_selected)
         output_flat = output.view(-1, input_dim)
 
         # Step 3: Process each expert
@@ -418,9 +392,7 @@ class FlowMatchingMoE(nn.Module):
                 continue
 
             # Extract inputs for this expert
-            expert_inputs = x_flat[
-                positions
-            ]  # (num_tokens, input_dim)
+            expert_inputs = x_flat[positions]  # (num_tokens, input_dim)
 
             # Get routing weights for this expert
             expert_weights = top_k_probs_flat[
@@ -433,9 +405,7 @@ class FlowMatchingMoE(nn.Module):
             )
 
             # Weight the outputs
-            weighted_outputs = (
-                expert_outputs * expert_weights.unsqueeze(-1)
-            )
+            weighted_outputs = expert_outputs * expert_weights.unsqueeze(-1)
 
             # Accumulate to output (scatter-add)
             output_flat.index_add_(0, positions, weighted_outputs)
@@ -445,15 +415,9 @@ class FlowMatchingMoE(nn.Module):
 
         # Step 4: Compute auxiliary losses
         aux_loss = None
-        if (
-            return_aux_loss
-            and self.config.use_router_aux_loss
-            and self.training
-        ):
+        if return_aux_loss and self.config.use_router_aux_loss and self.training:
             # Load balancing loss
-            load_balance_loss = self.router.compute_load_balance_loss(
-                all_probs
-            )
+            load_balance_loss = self.router.compute_load_balance_loss(all_probs)
 
             # Router z-loss
             z_loss = self.router.compute_router_z_loss(logits)
@@ -483,28 +447,21 @@ class FlowMatchingMoE(nn.Module):
             _, top_k_indices, all_probs = self.router(x)
 
             # Count selections per expert
-            selections = torch.zeros(
-                self.config.num_experts, device=x.device
-            )
+            selections = torch.zeros(self.config.num_experts, device=x.device)
             for expert_id in range(self.config.num_experts):
-                selections[expert_id] = (
-                    (top_k_indices == expert_id).sum().float()
-                )
+                selections[expert_id] = (top_k_indices == expert_id).sum().float()
 
             # Mean probabilities
             mean_probs = all_probs.mean(dim=[0, 1])
 
             # Balance score (1.0 = perfect balance, 0.0 = all on one expert)
-            ideal_selection = (
-                selections.sum() / self.config.num_experts
+            ideal_selection = selections.sum() / self.config.num_experts
+            balance_score = 1.0 - (selections - ideal_selection).abs().sum() / (
+                2 * selections.sum()
             )
-            balance_score = 1.0 - (
-                selections - ideal_selection
-            ).abs().sum() / (2 * selections.sum())
 
             return {
                 "expert_probs": mean_probs.cpu().numpy(),
                 "expert_selections": selections.cpu().numpy(),
                 "balance_score": balance_score.item(),
             }
-

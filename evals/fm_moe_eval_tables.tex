@@ -1,0 +1,67 @@
+% Model Architecture Metrics
+\begin{table}[h]
+\centering
+\caption{FM-MoE Model Architecture}
+\label{tab:model-architecture}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Total Parameters & 4,485,120 \\
+Parameters per Expert & 560,384 \\
+Model Size (MB) & 17.11 \\
+FLOPs per Token & 11,144,448 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Performance Metrics
+\begin{table}[h]
+\centering
+\caption{FM-MoE Performance Benchmarks}
+\label{tab:performance}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Forward Pass (ms) & 24.324 \\
+Backward Pass (ms) & 74.868 \\
+Throughput (tokens/sec) & 5,262 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Routing Metrics
+\begin{table}[h]
+\centering
+\caption{Expert Routing Analysis}
+\label{tab:routing}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Balance Score & 0.9453 \\
+Routing Entropy & 2.0794 \\
+Load Imbalance Ratio & 1.3704 \\
+Router Confidence & 0.1580 $\pm$ 0.0144 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Flow Quality Metrics
+\begin{table}[h]
+\centering
+\caption{Flow Matching Quality Analysis}
+\label{tab:flow-quality}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Flow Magnitude & 0.0000 $\pm$ 0.0000 \\
+Transformation Norm & 0.0000 $\pm$ 0.0000 \\
+Lipschitz Estimate & 0.0000 \\
+Reconstruction Error & 0.0000 \\
+Information Preservation & 1.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}

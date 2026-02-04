@@ -1,0 +1,175 @@
+{
+  "timestamp": "2026-02-04T09:53:25.298110",
+  "config_summary": {
+    "input_dim": 256,
+    "hidden_dim": 512,
+    "num_experts": 8,
+    "num_selected": 2,
+    "flow_steps": 10,
+    "time_embed_dim": 64,
+    "dropout": 0.0,
+    "use_router_aux_loss": true
+  },
+  "performance": {
+    "forward_pass_time_ms": 24.32447518222034,
+    "backward_pass_time_ms": 74.86820395570248,
+    "throughput_tokens_per_sec": 5262.189586460633,
+    "throughput_samples_per_sec": 164.44342457689478,
+    "peak_memory_mb": 0.0,
+    "allocated_memory_mb": 0.0
+  },
+  "model": {
+    "total_parameters": 4485120,
+    "trainable_parameters": 4485120,
+    "expert_parameters": 4483072,
+    "router_parameters": 2048,
+    "parameters_per_expert": 560384,
+    "model_size_mb": 17.109375,
+    "flops_estimate": 11144448
+  },
+  "routing": {
+    "expert_probabilities": [
+      0.1268576681613922,
+      0.12347463518381119,
+      0.1239013820886612,
+      0.12545651197433472,
+      0.12427204102277756,
+      0.12450695037841797,
+      0.12446765601634979,
+      0.12706315517425537
+    ],
+    "expert_selection_counts": [
+      34,
+      31,
+      28,
+      35,
+      27,
+      36,
+      28,
+      37
+    ],
+    "balance_score": 0.9453125,
+    "routing_entropy": 2.0793917179107666,
+    "load_imbalance_ratio": 1.3703703880310059,
+    "expert_utilization_std": 0.01461584959179163,
+    "router_confidence_mean": 0.15804529190063477,
+    "router_confidence_std": 0.014449598267674446,
+    "sparsity_ratio": 0.0
+  },
+  "flow_quality": {
+    "flow_magnitude_mean": 0.0,
+    "flow_magnitude_std": 0.0,
+    "transformation_norm_mean": 0.0,
+    "transformation_norm_std": 0.0,
+    "lipschitz_estimate": 0.0,
+    "step_convergence": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reconstruction_error": 0.0,
+    "information_preservation_ratio": 0.9999999403953552
+  },
+  "scalability": {
+    "num_experts": 8,
+    "flow_steps": 10,
+    "hidden_dim": 512,
+    "batch_size": 4,
+    "seq_len": 32,
+    "time_per_expert_ms": 0.6627082359045744,
+    "time_per_flow_step_ms": 0.060207522474229336,
+    "memory_scaling_factor": 1.0
+  },
+  "ablation_results": {
+    "num_experts": [
+      {
+        "value": 2,
+        "forward_time_ms": 10.155527930085858,
+        "throughput_tokens_per_sec": 12603.973016587217,
+        "total_parameters": 1121280,
+        "model_size_mb": 4.27734375
+      },
+      {
+        "value": 4,
+        "forward_time_ms": 12.669361351678768,
+        "throughput_tokens_per_sec": 10103.113838728676,
+        "total_parameters": 2242560,
+        "model_size_mb": 8.5546875
+      },
+      {
+        "value": 8,
+        "forward_time_ms": 20.752180290097993,
+        "throughput_tokens_per_sec": 6168.026598201628,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 16,
+        "forward_time_ms": 31.724597327411175,
+        "throughput_tokens_per_sec": 4034.724181964745,
+        "total_parameters": 8970240,
+        "model_size_mb": 34.21875
+      }
+    ],
+    "num_selected": [
+      {
+        "value": 1,
+        "forward_time_ms": 18.64797241675357,
+        "throughput_tokens_per_sec": 6864.017016938699,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 2,
+        "forward_time_ms": 19.150319586818416,
+        "throughput_tokens_per_sec": 6683.96156104388,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 4,
+        "forward_time_ms": 29.96518067084253,
+        "throughput_tokens_per_sec": 4271.624503320608,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      }
+    ],
+    "flow_steps": [
+      {
+        "value": 5,
+        "forward_time_ms": 10.951763639847437,
+        "throughput_tokens_per_sec": 11687.615274518754,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 10,
+        "forward_time_ms": 19.386791701739032,
+        "throughput_tokens_per_sec": 6602.433345818543,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 20,
+        "forward_time_ms": 36.69895837083459,
+        "throughput_tokens_per_sec": 3487.8374123480357,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      },
+      {
+        "value": 50,
+        "forward_time_ms": 99.91838860635956,
+        "throughput_tokens_per_sec": 1281.0454790686358,
+        "total_parameters": 4485120,
+        "model_size_mb": 17.109375
+      }
+    ]
+  }
+}
