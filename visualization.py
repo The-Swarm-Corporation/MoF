@@ -166,8 +166,12 @@ def compute_performance_metrics(
 
     # Memory metrics
     if torch.cuda.is_available():
-        peak_memory_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
-        allocated_memory_mb = torch.cuda.memory_allocated() / 1024 / 1024
+        peak_memory_mb = (
+            torch.cuda.max_memory_allocated() / 1024 / 1024
+        )
+        allocated_memory_mb = (
+            torch.cuda.memory_allocated() / 1024 / 1024
+        )
     else:
         peak_memory_mb = 0.0
         allocated_memory_mb = 0.0
@@ -200,7 +204,9 @@ def compute_model_metrics(model: FlowMatchingMoE) -> ModelMetrics:
 
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    trainable_params = sum(
+        p.numel() for p in model.parameters() if p.requires_grad
+    )
 
     # Router parameters
     router_params = sum(p.numel() for p in model.router.parameters())
@@ -224,7 +230,8 @@ def compute_model_metrics(model: FlowMatchingMoE) -> ModelMetrics:
     #   Layer 3: hidden_dim * input_dim
     expert_flops_per_token = (
         config.time_embed_dim  # Time embedding
-        + (config.input_dim + config.time_embed_dim) * config.hidden_dim  # Layer 1
+        + (config.input_dim + config.time_embed_dim)
+        * config.hidden_dim  # Layer 1
         + config.hidden_dim * config.hidden_dim  # Layer 2
         + config.hidden_dim * config.input_dim  # Layer 3
     )
@@ -245,7 +252,9 @@ def compute_model_metrics(model: FlowMatchingMoE) -> ModelMetrics:
     )
 
 
-def compute_routing_metrics(model: FlowMatchingMoE, x: torch.Tensor) -> RoutingMetrics:
+def compute_routing_metrics(
+    model: FlowMatchingMoE, x: torch.Tensor
+) -> RoutingMetrics:
     """
     Compute routing and expert utilization metrics.
 
@@ -270,16 +279,22 @@ def compute_routing_metrics(model: FlowMatchingMoE, x: torch.Tensor) -> RoutingM
     # Routing entropy (higher = more uncertain/diverse routing)
     # H = -sum(p * log(p))
     all_probs_np = all_probs.mean(dim=[0, 1]).cpu().numpy()
-    routing_entropy = -np.sum(all_probs_np * np.log(all_probs_np + 1e-10))
+    routing_entropy = -np.sum(
+        all_probs_np * np.log(all_probs_np + 1e-10)
+    )
 
     # Load imbalance ratio (max/min selection ratio)
     if expert_selections.min() > 0:
-        load_imbalance = expert_selections.max() / expert_selections.min()
+        load_imbalance = (
+            expert_selections.max() / expert_selections.min()
+        )
     else:
         load_imbalance = float("inf")
 
     # Expert utilization standard deviation
-    utilization_std = np.std(expert_selections / expert_selections.sum())
+    utilization_std = np.std(
+        expert_selections / expert_selections.sum()
+    )
 
     # Router confidence (mean and std of max probability)
     max_probs = all_probs.max(dim=-1).values
@@ -288,11 +303,15 @@ def compute_routing_metrics(model: FlowMatchingMoE, x: torch.Tensor) -> RoutingM
 
     # Sparsity ratio (fraction of near-zero probabilities)
     sparsity_threshold = 0.01
-    sparsity_ratio = (all_probs < sparsity_threshold).float().mean().item()
+    sparsity_ratio = (
+        (all_probs < sparsity_threshold).float().mean().item()
+    )
 
     return RoutingMetrics(
         expert_probabilities=expert_probs.tolist(),
-        expert_selection_counts=expert_selections.astype(int).tolist(),
+        expert_selection_counts=expert_selections.astype(
+            int
+        ).tolist(),
         balance_score=balance_score,
         routing_entropy=routing_entropy,
         load_imbalance_ratio=load_imbalance,
@@ -338,7 +357,9 @@ def compute_flow_quality_metrics(
     with torch.no_grad():
         for step in range(steps):
             t = step * dt
-            t_batch = torch.full((1,), t, dtype=x.dtype, device=x.device)
+            t_batch = torch.full(
+                (1,), t, dtype=x.dtype, device=x.device
+            )
             v_t = expert.forward(x_t, t_batch)
             velocities.append(v_t.clone())
 
@@ -359,12 +380,16 @@ def compute_flow_quality_metrics(
     final_transform = positions[-1] - positions[0]
 
     # Multi-sample transformation stats
-    batch_transforms = [torch.norm(final_transform).item()]  # Include single sample
+    batch_transforms = [
+        torch.norm(final_transform).item()
+    ]  # Include single sample
     for i in range(min(x.shape[0], 4)):
         for j in range(min(x.shape[1], 8)):
             sample = x[i, j, :].unsqueeze(0)
             output = expert.flow_transform(sample, steps=steps)
-            batch_transforms.append(torch.norm(output - sample).item())
+            batch_transforms.append(
+                torch.norm(output - sample).item()
+            )
 
     transformation_norm_mean = np.mean(batch_transforms)
     transformation_norm_std = np.std(batch_transforms)
@@ -383,7 +408,9 @@ def compute_flow_quality_metrics(
 
     # Step convergence (normalized change per step)
     total_change = sum(step_changes)
-    step_convergence = [c / (total_change + 1e-10) for c in step_changes]
+    step_convergence = [
+        c / (total_change + 1e-10) for c in step_changes
+    ]
 
     # Reconstruction error (apply flow forward then backward approximation)
     # This tests invertibility of the flow
@@ -393,17 +420,23 @@ def compute_flow_quality_metrics(
     with torch.no_grad():
         for step in range(steps - 1, -1, -1):
             t = step * dt
-            t_batch = torch.full((1,), t, dtype=x.dtype, device=x.device)
+            t_batch = torch.full(
+                (1,), t, dtype=x.dtype, device=x.device
+            )
             v_t = expert.forward(x_backward, t_batch)
             x_backward = x_backward - v_t * dt  # Reverse Euler
 
-    reconstruction_error = torch.norm(x_backward - sample_input).item()
+    reconstruction_error = torch.norm(
+        x_backward - sample_input
+    ).item()
 
     # Information preservation (cosine similarity before/after)
     cos_sim = torch.nn.functional.cosine_similarity(
         sample_input, x_forward, dim=-1
     ).item()
-    information_preservation = (cos_sim + 1) / 2  # Map from [-1, 1] to [0, 1]
+    information_preservation = (
+        cos_sim + 1
+    ) / 2  # Map from [-1, 1] to [0, 1]
 
     return FlowQualityMetrics(
         flow_magnitude_mean=flow_magnitude_mean,
@@ -446,7 +479,9 @@ def compute_scalability_metrics(
     with torch.no_grad():
         for _ in range(num_iterations):
             start = time.perf_counter()
-            _ = expert.flow_transform(sample_input, steps=config.flow_steps)
+            _ = expert.flow_transform(
+                sample_input, steps=config.flow_steps
+            )
             expert_times.append((time.perf_counter() - start) * 1000)
 
     time_per_expert_ms = sum(expert_times) / len(expert_times)
@@ -460,17 +495,25 @@ def compute_scalability_metrics(
             start = time.perf_counter()
             for step in range(config.flow_steps):
                 t = step * dt
-                t_batch = torch.full((1,), t, dtype=x.dtype, device=x.device)
+                t_batch = torch.full(
+                    (1,), t, dtype=x.dtype, device=x.device
+                )
                 v_t = expert.forward(x_t, t_batch)
                 x_t = x_t + v_t * dt
             step_times.append((time.perf_counter() - start) * 1000)
 
-    time_per_flow_step_ms = (sum(step_times) / len(step_times)) / config.flow_steps
+    time_per_flow_step_ms = (
+        sum(step_times) / len(step_times)
+    ) / config.flow_steps
 
     # Memory scaling factor (ratio of actual to theoretical minimum)
-    param_memory = sum(p.numel() * 4 for p in model.parameters()) / 1024 / 1024
+    param_memory = (
+        sum(p.numel() * 4 for p in model.parameters()) / 1024 / 1024
+    )
     if torch.cuda.is_available():
-        actual_memory = torch.cuda.max_memory_allocated() / 1024 / 1024
+        actual_memory = (
+            torch.cuda.max_memory_allocated() / 1024 / 1024
+        )
         memory_scaling_factor = actual_memory / (param_memory + 1e-10)
     else:
         memory_scaling_factor = 1.0
@@ -530,7 +573,9 @@ def run_ablation_study(
             # Ensure num_selected doesn't exceed num_experts
             if param_name == "num_experts":
                 config_dict[param_name] = value
-                config_dict["num_selected"] = min(config_dict["num_selected"], value)
+                config_dict["num_selected"] = min(
+                    config_dict["num_selected"], value
+                )
             elif param_name == "num_selected":
                 if value <= config_dict["num_experts"]:
                     config_dict[param_name] = value
@@ -546,7 +591,9 @@ def run_ablation_study(
                 # Adjust input if needed
                 test_x = x
                 if test_config.input_dim != x.shape[-1]:
-                    test_x = torch.randn(x.shape[0], x.shape[1], test_config.input_dim)
+                    test_x = torch.randn(
+                        x.shape[0], x.shape[1], test_config.input_dim
+                    )
 
                 # Compute metrics
                 perf = compute_performance_metrics(
@@ -636,7 +683,9 @@ def run_comprehensive_evaluation(
 # =============================================================================
 
 
-def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
+def format_metrics_for_paper(
+    evaluation: ComprehensiveEvaluation,
+) -> str:
     """
     Format evaluation results for paper/LaTeX inclusion.
 
@@ -648,7 +697,9 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     """
     output = []
     output.append("=" * 80)
-    output.append("FLOW MATCHING MIXTURE OF EXPERTS (FM-MoE) EVALUATION REPORT")
+    output.append(
+        "FLOW MATCHING MIXTURE OF EXPERTS (FM-MoE) EVALUATION REPORT"
+    )
     output.append("=" * 80)
     output.append(f"Generated: {evaluation.timestamp}")
     output.append("")
@@ -666,13 +717,27 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     output.append("MODEL ARCHITECTURE METRICS")
     output.append("-" * 80)
     m = evaluation.model
-    output.append(f"  Total Parameters:................. {m.total_parameters:,}")
-    output.append(f"  Trainable Parameters:............. {m.trainable_parameters:,}")
-    output.append(f"  Router Parameters:................ {m.router_parameters:,}")
-    output.append(f"  Expert Parameters (total):........ {m.expert_parameters:,}")
-    output.append(f"  Parameters per Expert:............ {m.parameters_per_expert:,}")
-    output.append(f"  Model Size (MB):.................. {m.model_size_mb:.2f}")
-    output.append(f"  FLOPs per Token (estimate):....... {m.flops_estimate:,}")
+    output.append(
+        f"  Total Parameters:................. {m.total_parameters:,}"
+    )
+    output.append(
+        f"  Trainable Parameters:............. {m.trainable_parameters:,}"
+    )
+    output.append(
+        f"  Router Parameters:................ {m.router_parameters:,}"
+    )
+    output.append(
+        f"  Expert Parameters (total):........ {m.expert_parameters:,}"
+    )
+    output.append(
+        f"  Parameters per Expert:............ {m.parameters_per_expert:,}"
+    )
+    output.append(
+        f"  Model Size (MB):.................. {m.model_size_mb:.2f}"
+    )
+    output.append(
+        f"  FLOPs per Token (estimate):....... {m.flops_estimate:,}"
+    )
     output.append("")
 
     # Performance Metrics
@@ -680,16 +745,24 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     output.append("PERFORMANCE METRICS")
     output.append("-" * 80)
     p = evaluation.performance
-    output.append(f"  Forward Pass Time (ms):........... {p.forward_pass_time_ms:.3f}")
-    output.append(f"  Backward Pass Time (ms):.......... {p.backward_pass_time_ms:.3f}")
+    output.append(
+        f"  Forward Pass Time (ms):........... {p.forward_pass_time_ms:.3f}"
+    )
+    output.append(
+        f"  Backward Pass Time (ms):.......... {p.backward_pass_time_ms:.3f}"
+    )
     output.append(
         f"  Throughput (tokens/sec):.......... {p.throughput_tokens_per_sec:,.0f}"
     )
     output.append(
         f"  Throughput (samples/sec):......... {p.throughput_samples_per_sec:,.1f}"
     )
-    output.append(f"  Peak Memory (MB):................. {p.peak_memory_mb:.2f}")
-    output.append(f"  Allocated Memory (MB):............ {p.allocated_memory_mb:.2f}")
+    output.append(
+        f"  Peak Memory (MB):................. {p.peak_memory_mb:.2f}"
+    )
+    output.append(
+        f"  Allocated Memory (MB):............ {p.allocated_memory_mb:.2f}"
+    )
     output.append("")
 
     # Routing Metrics
@@ -697,17 +770,27 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     output.append("ROUTING & EXPERT UTILIZATION METRICS")
     output.append("-" * 80)
     r = evaluation.routing
-    output.append(f"  Balance Score:.................... {r.balance_score:.4f}")
-    output.append(f"  Routing Entropy:.................. {r.routing_entropy:.4f}")
-    output.append(f"  Load Imbalance Ratio:............. {r.load_imbalance_ratio:.4f}")
+    output.append(
+        f"  Balance Score:.................... {r.balance_score:.4f}"
+    )
+    output.append(
+        f"  Routing Entropy:.................. {r.routing_entropy:.4f}"
+    )
+    output.append(
+        f"  Load Imbalance Ratio:............. {r.load_imbalance_ratio:.4f}"
+    )
     output.append(
         f"  Expert Utilization Std:........... {r.expert_utilization_std:.4f}"
     )
     output.append(
         f"  Router Confidence (mean):......... {r.router_confidence_mean:.4f}"
     )
-    output.append(f"  Router Confidence (std):.......... {r.router_confidence_std:.4f}")
-    output.append(f"  Sparsity Ratio:................... {r.sparsity_ratio:.4f}")
+    output.append(
+        f"  Router Confidence (std):.......... {r.router_confidence_std:.4f}"
+    )
+    output.append(
+        f"  Sparsity Ratio:................... {r.sparsity_ratio:.4f}"
+    )
     output.append("")
     output.append("  Expert Probabilities:")
     for i, prob in enumerate(r.expert_probabilities):
@@ -723,16 +806,24 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     output.append("FLOW MATCHING QUALITY METRICS")
     output.append("-" * 80)
     f = evaluation.flow_quality
-    output.append(f"  Flow Magnitude (mean):............ {f.flow_magnitude_mean:.4f}")
-    output.append(f"  Flow Magnitude (std):............. {f.flow_magnitude_std:.4f}")
+    output.append(
+        f"  Flow Magnitude (mean):............ {f.flow_magnitude_mean:.4f}"
+    )
+    output.append(
+        f"  Flow Magnitude (std):............. {f.flow_magnitude_std:.4f}"
+    )
     output.append(
         f"  Transformation Norm (mean):....... {f.transformation_norm_mean:.4f}"
     )
     output.append(
         f"  Transformation Norm (std):........ {f.transformation_norm_std:.4f}"
     )
-    output.append(f"  Lipschitz Estimate:............... {f.lipschitz_estimate:.4f}")
-    output.append(f"  Reconstruction Error:............. {f.reconstruction_error:.4f}")
+    output.append(
+        f"  Lipschitz Estimate:............... {f.lipschitz_estimate:.4f}"
+    )
+    output.append(
+        f"  Reconstruction Error:............. {f.reconstruction_error:.4f}"
+    )
     output.append(
         f"  Information Preservation:......... {f.information_preservation_ratio:.4f}"
     )
@@ -747,11 +838,19 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
     output.append("SCALABILITY METRICS")
     output.append("-" * 80)
     s = evaluation.scalability
-    output.append(f"  Batch Size:...................... {s.batch_size}")
+    output.append(
+        f"  Batch Size:...................... {s.batch_size}"
+    )
     output.append(f"  Sequence Length:................. {s.seq_len}")
-    output.append(f"  Time per Expert (ms):............ {s.time_per_expert_ms:.3f}")
-    output.append(f"  Time per Flow Step (ms):......... {s.time_per_flow_step_ms:.3f}")
-    output.append(f"  Memory Scaling Factor:........... {s.memory_scaling_factor:.2f}")
+    output.append(
+        f"  Time per Expert (ms):............ {s.time_per_expert_ms:.3f}"
+    )
+    output.append(
+        f"  Time per Flow Step (ms):......... {s.time_per_flow_step_ms:.3f}"
+    )
+    output.append(
+        f"  Memory Scaling Factor:........... {s.memory_scaling_factor:.2f}"
+    )
     output.append("")
 
     # Ablation Results
@@ -760,7 +859,10 @@ def format_metrics_for_paper(evaluation: ComprehensiveEvaluation) -> str:
         output.append("ABLATION STUDY RESULTS")
         output.append("-" * 80)
 
-        for param_name, results in evaluation.ablation_results.items():
+        for (
+            param_name,
+            results,
+        ) in evaluation.ablation_results.items():
             output.append(f"\n  Varying {param_name}:")
             output.append(
                 f"  {'Value':>10} {'Time(ms)':>12} {'Throughput':>15} {'Params':>12} {'Size(MB)':>10}"
@@ -809,7 +911,9 @@ def generate_latex_table(evaluation: ComprehensiveEvaluation) -> str:
 
     m = evaluation.model
     output.append(f"Total Parameters & {m.total_parameters:,} \\\\")
-    output.append(f"Parameters per Expert & {m.parameters_per_expert:,} \\\\")
+    output.append(
+        f"Parameters per Expert & {m.parameters_per_expert:,} \\\\"
+    )
     output.append(f"Model Size (MB) & {m.model_size_mb:.2f} \\\\")
     output.append(f"FLOPs per Token & {m.flops_estimate:,} \\\\")
 
@@ -830,9 +934,15 @@ def generate_latex_table(evaluation: ComprehensiveEvaluation) -> str:
     output.append("\\midrule")
 
     p = evaluation.performance
-    output.append(f"Forward Pass (ms) & {p.forward_pass_time_ms:.3f} \\\\")
-    output.append(f"Backward Pass (ms) & {p.backward_pass_time_ms:.3f} \\\\")
-    output.append(f"Throughput (tokens/sec) & {p.throughput_tokens_per_sec:,.0f} \\\\")
+    output.append(
+        f"Forward Pass (ms) & {p.forward_pass_time_ms:.3f} \\\\"
+    )
+    output.append(
+        f"Backward Pass (ms) & {p.backward_pass_time_ms:.3f} \\\\"
+    )
+    output.append(
+        f"Throughput (tokens/sec) & {p.throughput_tokens_per_sec:,.0f} \\\\"
+    )
 
     output.append("\\bottomrule")
     output.append("\\end{tabular}")
@@ -853,7 +963,9 @@ def generate_latex_table(evaluation: ComprehensiveEvaluation) -> str:
     r = evaluation.routing
     output.append(f"Balance Score & {r.balance_score:.4f} \\\\")
     output.append(f"Routing Entropy & {r.routing_entropy:.4f} \\\\")
-    output.append(f"Load Imbalance Ratio & {r.load_imbalance_ratio:.4f} \\\\")
+    output.append(
+        f"Load Imbalance Ratio & {r.load_imbalance_ratio:.4f} \\\\"
+    )
     output.append(
         f"Router Confidence & {r.router_confidence_mean:.4f} $\\pm$ {r.router_confidence_std:.4f} \\\\"
     )
@@ -881,8 +993,12 @@ def generate_latex_table(evaluation: ComprehensiveEvaluation) -> str:
     output.append(
         f"Transformation Norm & {f.transformation_norm_mean:.4f} $\\pm$ {f.transformation_norm_std:.4f} \\\\"
     )
-    output.append(f"Lipschitz Estimate & {f.lipschitz_estimate:.4f} \\\\")
-    output.append(f"Reconstruction Error & {f.reconstruction_error:.4f} \\\\")
+    output.append(
+        f"Lipschitz Estimate & {f.lipschitz_estimate:.4f} \\\\"
+    )
+    output.append(
+        f"Reconstruction Error & {f.reconstruction_error:.4f} \\\\"
+    )
     output.append(
         f"Information Preservation & {f.information_preservation_ratio:.4f} \\\\"
     )
@@ -907,7 +1023,9 @@ def _convert_to_native_types(obj: Any) -> Any:
     import numpy as np
 
     if isinstance(obj, dict):
-        return {k: _convert_to_native_types(v) for k, v in obj.items()}
+        return {
+            k: _convert_to_native_types(v) for k, v in obj.items()
+        }
     elif isinstance(obj, list):
         return [_convert_to_native_types(v) for v in obj]
     elif isinstance(obj, (np.integer, np.int32, np.int64)):
@@ -1000,9 +1118,24 @@ def run_benchmark_suite(
     """
     if configs is None:
         configs = [
-            {"name": "small", "input_dim": 128, "hidden_dim": 256, "num_experts": 4},
-            {"name": "medium", "input_dim": 256, "hidden_dim": 512, "num_experts": 8},
-            {"name": "large", "input_dim": 512, "hidden_dim": 1024, "num_experts": 16},
+            {
+                "name": "small",
+                "input_dim": 128,
+                "hidden_dim": 256,
+                "num_experts": 4,
+            },
+            {
+                "name": "medium",
+                "input_dim": 256,
+                "hidden_dim": 512,
+                "num_experts": 8,
+            },
+            {
+                "name": "large",
+                "input_dim": 512,
+                "hidden_dim": 1024,
+                "num_experts": 16,
+            },
         ]
 
     results = {
@@ -1014,12 +1147,16 @@ def run_benchmark_suite(
     # Test each configuration
     for config_dict in configs:
         name = config_dict.pop("name", "unnamed")
-        config = FlowMatchingMoEConfig(**config_dict, num_selected=2, flow_steps=10)
+        config = FlowMatchingMoEConfig(
+            **config_dict, num_selected=2, flow_steps=10
+        )
         model = FlowMatchingMoE(config)
 
         x = torch.randn(4, 64, config.input_dim)
 
-        perf = compute_performance_metrics(model, x, num_warmup=1, num_iterations=3)
+        perf = compute_performance_metrics(
+            model, x, num_warmup=1, num_iterations=3
+        )
         model_metrics = compute_model_metrics(model)
 
         results["configs"].append(
@@ -1035,7 +1172,11 @@ def run_benchmark_suite(
 
     # Batch size scaling (use medium config)
     medium_config = FlowMatchingMoEConfig(
-        input_dim=256, hidden_dim=512, num_experts=8, num_selected=2, flow_steps=10
+        input_dim=256,
+        hidden_dim=512,
+        num_experts=8,
+        num_selected=2,
+        flow_steps=10,
     )
     medium_model = FlowMatchingMoE(medium_config)
 
@@ -1069,7 +1210,9 @@ def run_benchmark_suite(
     return results
 
 
-def print_benchmark_summary(benchmark_results: Dict[str, Any]) -> None:
+def print_benchmark_summary(
+    benchmark_results: Dict[str, Any],
+) -> None:
     """Print formatted benchmark summary."""
     print("\n" + "=" * 80)
     print("BENCHMARK SUITE RESULTS")
@@ -1176,7 +1319,9 @@ def visualize_flow_matching_moe(
     fig = plt.figure(figsize=figsize, facecolor="white")
 
     # Define grid layout
-    gs = fig.add_gridspec(3, 3, hspace=0.35, wspace=0.3, height_ratios=[1.2, 1, 1])
+    gs = fig.add_gridspec(
+        3, 3, hspace=0.35, wspace=0.3, height_ratios=[1.2, 1, 1]
+    )
 
     # =========================================================================
     # Panel 1: Architecture Diagram (top, spans all columns)
@@ -1302,7 +1447,8 @@ def visualize_flow_matching_moe(
 
     # Expert label
     ax_arch.text(
-        expert_start_x + (num_to_draw * (expert_width + expert_spacing)) / 2,
+        expert_start_x
+        + (num_to_draw * (expert_width + expert_spacing)) / 2,
         17,
         f"{config.num_experts} Flow Matching Experts",
         ha="center",
@@ -1344,7 +1490,11 @@ def visualize_flow_matching_moe(
 
     # Router -> Experts (fan out)
     for i in range(num_to_draw):
-        ex = expert_start_x + i * (expert_width + expert_spacing) + expert_width / 2
+        ex = (
+            expert_start_x
+            + i * (expert_width + expert_spacing)
+            + expert_width / 2
+        )
         ax_arch.annotate(
             "",
             xy=(ex, 30),
@@ -1359,7 +1509,11 @@ def visualize_flow_matching_moe(
 
     # Experts -> Sum (fan in)
     for i in range(num_to_draw):
-        ex = expert_start_x + i * (expert_width + expert_spacing) + expert_width / 2
+        ex = (
+            expert_start_x
+            + i * (expert_width + expert_spacing)
+            + expert_width / 2
+        )
         ax_arch.annotate(
             "",
             xy=(sum_x, 25),
@@ -1474,7 +1628,9 @@ def visualize_flow_matching_moe(
         fontweight="bold",
     )
     ax_heatmap.set_yticks(range(config.num_experts))
-    ax_heatmap.set_xticks(range(0, max_tokens, max(1, max_tokens // 8)))
+    ax_heatmap.set_xticks(
+        range(0, max_tokens, max(1, max_tokens // 8))
+    )
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax_heatmap, shrink=0.8)
@@ -1511,7 +1667,9 @@ def visualize_flow_matching_moe(
 
         # Take a sample input and trace the flow trajectory
         # Use full input_dim for the expert, then project to 2D for visualization
-        sample_input = x[0, 0, :].unsqueeze(0)  # Full input: (1, input_dim)
+        sample_input = x[0, 0, :].unsqueeze(
+            0
+        )  # Full input: (1, input_dim)
 
         # Get trajectory through one expert
         expert_idx = 0
@@ -1556,7 +1714,9 @@ def visualize_flow_matching_moe(
                 "",
                 xy=(trajectory[i + 1, 0], trajectory[i + 1, 1]),
                 xytext=(trajectory[i, 0], trajectory[i, 1]),
-                arrowprops=dict(arrowstyle="->", color="gray", lw=1.5),
+                arrowprops=dict(
+                    arrowstyle="->", color="gray", lw=1.5
+                ),
                 zorder=2,
             )
 
@@ -1652,19 +1812,27 @@ def visualize_flow_matching_moe(
     fig.suptitle("", fontsize=1)  # Placeholder for spacing
 
     # Save figure
-    plt.savefig(save_path, dpi=150, bbox_inches="tight", facecolor="white")
+    plt.savefig(
+        save_path, dpi=150, bbox_inches="tight", facecolor="white"
+    )
     plt.close()
 
     print("\n" + "=" * 60)
     print(f"Visualization saved to: {save_path}")
     print("=" * 60)
     print("\nVisualization includes:")
-    print("  1. Architecture diagram showing Router → Experts → Weighted Sum")
-    print(f"  2. Router probability distribution across {config.num_experts} experts")
+    print(
+        "  1. Architecture diagram showing Router → Experts → Weighted Sum"
+    )
+    print(
+        f"  2. Router probability distribution across {config.num_experts} experts"
+    )
     print("  3. Expert selection heatmap for token routing")
     print("  4. Expert usage pie chart with balance score")
     if show_flow_trajectory:
-        print(f"  5. Flow transformation trajectory ({config.flow_steps} Euler steps)")
+        print(
+            f"  5. Flow transformation trajectory ({config.flow_steps} Euler steps)"
+        )
     print("  6. Configuration and statistics summary")
     print()
 
@@ -1722,7 +1890,9 @@ def run_full_evaluation_and_visualization(
 
     # Run comprehensive evaluation
     print("\n[2/6] Running comprehensive evaluation...")
-    evaluation = run_comprehensive_evaluation(model, x, run_ablation=run_ablation)
+    evaluation = run_comprehensive_evaluation(
+        model, x, run_ablation=run_ablation
+    )
     print("      Evaluation complete!")
 
     # Print formatted report
@@ -1761,7 +1931,9 @@ def run_full_evaluation_and_visualization(
         if benchmark_results:
             import os
 
-            benchmark_path = os.path.join(save_dir, "fm_moe_benchmarks.json")
+            benchmark_path = os.path.join(
+                save_dir, "fm_moe_benchmarks.json"
+            )
             with open(benchmark_path, "w") as f:
                 json.dump(benchmark_results, f, indent=2)
             print(f"      Benchmarks:   {benchmark_path}")
@@ -1772,17 +1944,31 @@ def run_full_evaluation_and_visualization(
     print("EVALUATION COMPLETE")
     print("=" * 80)
     print(f"\nOutput files saved to '{save_dir}/' folder:")
-    print(f"  - {save_dir}/fm_moe_eval_results.json    : Raw metrics data")
-    print(f"  - {save_dir}/fm_moe_eval_report.txt      : Formatted text report")
-    print(f"  - {save_dir}/fm_moe_eval_tables.tex      : LaTeX tables for paper")
-    print(f"  - {save_dir}/fm_moe_benchmarks.json      : Benchmark suite results")
-    print(f"  - {save_dir}/flow_matching_moe_visualization.png : Architecture diagram")
+    print(
+        f"  - {save_dir}/fm_moe_eval_results.json    : Raw metrics data"
+    )
+    print(
+        f"  - {save_dir}/fm_moe_eval_report.txt      : Formatted text report"
+    )
+    print(
+        f"  - {save_dir}/fm_moe_eval_tables.tex      : LaTeX tables for paper"
+    )
+    print(
+        f"  - {save_dir}/fm_moe_benchmarks.json      : Benchmark suite results"
+    )
+    print(
+        f"  - {save_dir}/flow_matching_moe_visualization.png : Architecture diagram"
+    )
     print("\nKey metrics for abstract/introduction:")
-    print(f"  - Total Parameters: {evaluation.model.total_parameters:,}")
+    print(
+        f"  - Total Parameters: {evaluation.model.total_parameters:,}"
+    )
     print(
         f"  - Throughput: {evaluation.performance.throughput_tokens_per_sec:,.0f} tokens/sec"
     )
-    print(f"  - Expert Balance Score: {evaluation.routing.balance_score:.4f}")
+    print(
+        f"  - Expert Balance Score: {evaluation.routing.balance_score:.4f}"
+    )
     print(
         f"  - Information Preservation: {evaluation.flow_quality.information_preservation_ratio:.4f}"
     )
@@ -1802,7 +1988,13 @@ if __name__ == "__main__":
 
     # Example: Access specific metrics programmatically
     print("\n--- Quick Access to Key Metrics ---")
-    print(f"Forward latency: {evaluation.performance.forward_pass_time_ms:.3f} ms")
+    print(
+        f"Forward latency: {evaluation.performance.forward_pass_time_ms:.3f} ms"
+    )
     print(f"Model size: {evaluation.model.model_size_mb:.2f} MB")
-    print(f"Routing entropy: {evaluation.routing.routing_entropy:.4f}")
-    print(f"Flow Lipschitz estimate: {evaluation.flow_quality.lipschitz_estimate:.4f}")
+    print(
+        f"Routing entropy: {evaluation.routing.routing_entropy:.4f}"
+    )
+    print(
+        f"Flow Lipschitz estimate: {evaluation.flow_quality.lipschitz_estimate:.4f}"
+    )

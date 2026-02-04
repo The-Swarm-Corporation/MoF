@@ -122,10 +122,15 @@ class StandardMoE(nn.Module):
 
         # MLP experts
         self.experts = nn.ModuleList(
-            [MLPExpert(d_model, d_ff, dropout) for _ in range(num_experts)]
+            [
+                MLPExpert(d_model, d_ff, dropout)
+                for _ in range(num_experts)
+            ]
         )
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         batch_size, seq_len, d_model = x.shape
 
         # Compute routing
@@ -133,8 +138,12 @@ class StandardMoE(nn.Module):
         probs = F.softmax(logits, dim=-1)
 
         # Top-k selection
-        top_k_probs, top_k_indices = torch.topk(probs, self.num_selected, dim=-1)
-        top_k_probs = top_k_probs / (top_k_probs.sum(dim=-1, keepdim=True) + 1e-9)
+        top_k_probs, top_k_indices = torch.topk(
+            probs, self.num_selected, dim=-1
+        )
+        top_k_probs = top_k_probs / (
+            top_k_probs.sum(dim=-1, keepdim=True) + 1e-9
+        )
 
         # Process through experts
         x_flat = x.view(-1, d_model)
@@ -152,9 +161,13 @@ class StandardMoE(nn.Module):
                 continue
 
             expert_inputs = x_flat[positions]
-            expert_weights = top_k_probs_flat[positions, selection_indices]
+            expert_weights = top_k_probs_flat[
+                positions, selection_indices
+            ]
             expert_outputs = self.experts[expert_id](expert_inputs)
-            weighted_outputs = expert_outputs * expert_weights.unsqueeze(-1)
+            weighted_outputs = (
+                expert_outputs * expert_weights.unsqueeze(-1)
+            )
             output_flat.index_add_(0, positions, weighted_outputs)
 
         output = output_flat.view(batch_size, seq_len, d_model)
@@ -177,11 +190,17 @@ class StandardMoE(nn.Module):
         with torch.no_grad():
             logits = self.gate(x)
             probs = F.softmax(logits, dim=-1)
-            _, top_k_indices = torch.topk(probs, self.num_selected, dim=-1)
+            _, top_k_indices = torch.topk(
+                probs, self.num_selected, dim=-1
+            )
 
-            selections = torch.zeros(self.num_experts, device=x.device)
+            selections = torch.zeros(
+                self.num_experts, device=x.device
+            )
             for expert_id in range(self.num_experts):
-                selections[expert_id] = (top_k_indices == expert_id).sum().float()
+                selections[expert_id] = (
+                    (top_k_indices == expert_id).sum().float()
+                )
 
             mean_probs = probs.mean(dim=[0, 1])
             ideal = selections.sum() / self.num_experts
@@ -221,7 +240,9 @@ class DenseFFN(nn.Module):
 class MultiHeadAttention(nn.Module):
     """Standard multi-head self-attention."""
 
-    def __init__(self, d_model: int, n_heads: int, dropout: float = 0.1):
+    def __init__(
+        self, d_model: int, n_heads: int, dropout: float = 0.1
+    ):
         super().__init__()
         assert d_model % n_heads == 0
 
@@ -238,7 +259,9 @@ class MultiHeadAttention(nn.Module):
     ) -> torch.Tensor:
         B, S, D = x.shape
 
-        qkv = self.qkv(x).reshape(B, S, 3, self.n_heads, self.head_dim)
+        qkv = self.qkv(x).reshape(
+            B, S, 3, self.n_heads, self.head_dim
+        )
         qkv = qkv.permute(2, 0, 3, 1, 4)  # (3, B, H, S, D)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
@@ -297,21 +320,29 @@ class BenchmarkTransformer(nn.Module):
     Supports dense FFN, standard MoE, and FM-MoE.
     """
 
-    def __init__(self, config: TransformerConfig, ffn_type: str = "dense"):
+    def __init__(
+        self, config: TransformerConfig, ffn_type: str = "dense"
+    ):
         super().__init__()
         self.config = config
         self.ffn_type = ffn_type
 
         # Token and position embeddings
-        self.token_emb = nn.Embedding(config.vocab_size, config.d_model)
-        self.pos_emb = nn.Embedding(config.max_seq_len, config.d_model)
+        self.token_emb = nn.Embedding(
+            config.vocab_size, config.d_model
+        )
+        self.pos_emb = nn.Embedding(
+            config.max_seq_len, config.d_model
+        )
         self.dropout = nn.Dropout(config.dropout)
 
         # Create FFN modules based on type
         self.blocks = nn.ModuleList()
         for _ in range(config.n_layers):
             if ffn_type == "dense":
-                ffn = DenseFFN(config.d_model, config.d_ff, config.dropout)
+                ffn = DenseFFN(
+                    config.d_model, config.d_ff, config.dropout
+                )
             elif ffn_type == "standard_moe":
                 ffn = StandardMoE(
                     d_model=config.d_model,
@@ -343,7 +374,9 @@ class BenchmarkTransformer(nn.Module):
 
         # Output head
         self.ln_f = nn.LayerNorm(config.d_model)
-        self.head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.head = nn.Linear(
+            config.d_model, config.vocab_size, bias=False
+        )
 
         # Tie embeddings
         self.head.weight = self.token_emb.weight
@@ -363,7 +396,9 @@ class BenchmarkTransformer(nn.Module):
         self,
         input_ids: torch.Tensor,
         targets: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+    ) -> Tuple[
+        torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]
+    ]:
         B, S = input_ids.shape
         device = input_ids.device
 
@@ -373,7 +408,11 @@ class BenchmarkTransformer(nn.Module):
         x = self.dropout(x)
 
         # Causal mask
-        mask = torch.tril(torch.ones(S, S, device=device)).unsqueeze(0).unsqueeze(0)
+        mask = (
+            torch.tril(torch.ones(S, S, device=device))
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
 
         # Transformer blocks
         total_aux_loss = 0.0
@@ -397,7 +436,11 @@ class BenchmarkTransformer(nn.Module):
                 ignore_index=-100,
             )
 
-        aux_loss_mean = total_aux_loss / max(aux_count, 1) if aux_count > 0 else None
+        aux_loss_mean = (
+            total_aux_loss / max(aux_count, 1)
+            if aux_count > 0
+            else None
+        )
 
         return logits, loss, aux_loss_mean
 
@@ -443,11 +486,15 @@ class WikiText103Dataset(Dataset):
         try:
             from datasets import load_dataset
         except ImportError:
-            raise ImportError("Please install datasets: pip install datasets")
+            raise ImportError(
+                "Please install datasets: pip install datasets"
+            )
 
         # Load dataset
         print(f"Loading WikiText-103 {split} split...")
-        dataset = load_dataset("wikitext", "wikitext-103-v1", split=split)
+        dataset = load_dataset(
+            "wikitext", "wikitext-103-v1", split=split
+        )
 
         # Load tokenizer
         if tokenizer is None:
@@ -465,17 +512,23 @@ class WikiText103Dataset(Dataset):
 
         # Tokenize all text
         print("Tokenizing...")
-        all_text = "\n".join([t for t in dataset["text"] if t.strip()])
+        all_text = "\n".join(
+            [t for t in dataset["text"] if t.strip()]
+        )
         self.tokens = tokenizer.encode(all_text)
 
         # Calculate number of sequences
         self.n_sequences = (len(self.tokens) - 1) // max_seq_len
-        print(f"Created {self.n_sequences} sequences of length {max_seq_len}")
+        print(
+            f"Created {self.n_sequences} sequences of length {max_seq_len}"
+        )
 
     def __len__(self) -> int:
         return self.n_sequences
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, idx: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         start = idx * self.max_seq_len
         end = start + self.max_seq_len + 1
 
@@ -492,18 +545,33 @@ def create_dataloaders(
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Create train/val/test dataloaders."""
 
-    train_ds = WikiText103Dataset("train", config.max_seq_len, tokenizer)
-    val_ds = WikiText103Dataset("validation", config.max_seq_len, train_ds.tokenizer)
-    test_ds = WikiText103Dataset("test", config.max_seq_len, train_ds.tokenizer)
+    train_ds = WikiText103Dataset(
+        "train", config.max_seq_len, tokenizer
+    )
+    val_ds = WikiText103Dataset(
+        "validation", config.max_seq_len, train_ds.tokenizer
+    )
+    test_ds = WikiText103Dataset(
+        "test", config.max_seq_len, train_ds.tokenizer
+    )
 
     train_loader = DataLoader(
-        train_ds, batch_size=config.batch_size, shuffle=True, num_workers=0
+        train_ds,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=0,
     )
     val_loader = DataLoader(
-        val_ds, batch_size=config.batch_size, shuffle=False, num_workers=0
+        val_ds,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=0,
     )
     test_loader = DataLoader(
-        test_ds, batch_size=config.batch_size, shuffle=False, num_workers=0
+        test_ds,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=0,
     )
 
     return train_loader, val_loader, test_loader
@@ -514,13 +582,19 @@ def create_dataloaders(
 # =============================================================================
 
 
-def get_lr(step: int, warmup_steps: int, max_lr: float, total_steps: int) -> float:
+def get_lr(
+    step: int, warmup_steps: int, max_lr: float, total_steps: int
+) -> float:
     """Learning rate schedule with warmup and cosine decay."""
     if step < warmup_steps:
         return max_lr * step / warmup_steps
     decay_steps = total_steps - warmup_steps
     decay_step = step - warmup_steps
-    return max_lr * 0.5 * (1 + math.cos(math.pi * decay_step / decay_steps))
+    return (
+        max_lr
+        * 0.5
+        * (1 + math.cos(math.pi * decay_step / decay_steps))
+    )
 
 
 @torch.no_grad()
@@ -589,11 +663,19 @@ def train_epoch(
     start_time = time.time()
 
     for batch_idx, (x, y) in enumerate(dataloader):
-        if config.max_steps is not None and global_step >= config.max_steps:
+        if (
+            config.max_steps is not None
+            and global_step >= config.max_steps
+        ):
             break
 
         # Update learning rate
-        lr = get_lr(global_step, config.warmup_steps, config.learning_rate, total_steps)
+        lr = get_lr(
+            global_step,
+            config.warmup_steps,
+            config.learning_rate,
+            total_steps,
+        )
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
 
@@ -630,7 +712,9 @@ def train_epoch(
 
             aux_str = ""
             if aux_count > 0:
-                aux_str = f", aux_loss: {total_aux_loss/aux_count:.4f}"
+                aux_str = (
+                    f", aux_loss: {total_aux_loss/aux_count:.4f}"
+                )
 
             print(
                 f"  Epoch {epoch} | Batch {batch_idx+1}/{len(dataloader)} | "
@@ -712,7 +796,9 @@ def train_model(
         history["train_ppl"].append(train_results["perplexity"])
 
         # Validate
-        val_results = evaluate(model, val_loader, device, max_batches=50)
+        val_results = evaluate(
+            model, val_loader, device, max_batches=50
+        )
         history["val_loss"].append(val_results["loss"])
         history["val_ppl"].append(val_results["perplexity"])
 
@@ -722,14 +808,20 @@ def train_model(
             sample_x = sample_x.to(device)
             with torch.no_grad():
                 # Get hidden states after embedding
-                pos = torch.arange(sample_x.shape[1], device=device).unsqueeze(0)
-                hidden = model.token_emb(sample_x) + model.pos_emb(pos)
+                pos = torch.arange(
+                    sample_x.shape[1], device=device
+                ).unsqueeze(0)
+                hidden = model.token_emb(sample_x) + model.pos_emb(
+                    pos
+                )
                 stats = model.get_expert_stats(hidden)
                 if stats:
                     history["expert_stats"].append(
                         {
                             "epoch": epoch,
-                            "balance_scores": [s["balance_score"] for s in stats],
+                            "balance_scores": [
+                                s["balance_score"] for s in stats
+                            ],
                         }
                     )
 
@@ -745,8 +837,13 @@ def train_model(
         )
         print(f"  Best Val PPL: {best_val_ppl:.2f}")
 
-        if config.max_steps is not None and global_step >= config.max_steps:
-            print(f"Reached max_steps ({config.max_steps}), stopping.")
+        if (
+            config.max_steps is not None
+            and global_step >= config.max_steps
+        ):
+            print(
+                f"Reached max_steps ({config.max_steps}), stopping."
+            )
             break
 
     return {
@@ -782,7 +879,9 @@ def run_benchmark(
     print(f"Sequence length: {config.max_seq_len}")
     print(f"Model dim: {config.d_model}")
     print(f"Layers: {config.n_layers}")
-    print(f"Experts: {config.num_experts} (select {config.num_selected})")
+    print(
+        f"Experts: {config.num_experts} (select {config.num_selected})"
+    )
     print(f"Flow steps: {config.flow_steps}")
     print()
 
@@ -802,7 +901,12 @@ def run_benchmark(
         model = BenchmarkTransformer(config, ffn_type=model_type)
 
         result = train_model(
-            model, train_loader, val_loader, config, epochs, model_type
+            model,
+            train_loader,
+            val_loader,
+            config,
+            epochs,
+            model_type,
         )
 
         # Final test evaluation
@@ -816,7 +920,11 @@ def run_benchmark(
 
         # Clear memory
         del model
-        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        (
+            torch.cuda.empty_cache()
+            if torch.cuda.is_available()
+            else None
+        )
 
     # Summary
     print("\n" + "=" * 70)
@@ -849,7 +957,9 @@ def run_benchmark(
             return [convert_for_json(v) for v in obj]
         return obj
 
-    results_file = os.path.join(output_dir, f"wikitext103_benchmark_{timestamp}.json")
+    results_file = os.path.join(
+        output_dir, f"wikitext103_benchmark_{timestamp}.json"
+    )
     with open(results_file, "w") as f:
         json.dump(convert_for_json(results), f, indent=2)
     print(f"\nResults saved to: {results_file}")
@@ -858,7 +968,9 @@ def run_benchmark(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="WikiText-103 Perplexity Benchmark")
+    parser = argparse.ArgumentParser(
+        description="WikiText-103 Perplexity Benchmark"
+    )
     parser.add_argument(
         "--model",
         type=str,
@@ -867,16 +979,31 @@ def main():
         help="Model type to benchmark",
     )
     parser.add_argument(
-        "--epochs", type=int, default=5, help="Number of training epochs"
-    )
-    parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--seq_len", type=int, default=256, help="Sequence length")
-    parser.add_argument("--d_model", type=int, default=256, help="Model dimension")
-    parser.add_argument(
-        "--n_layers", type=int, default=4, help="Number of transformer layers"
+        "--epochs",
+        type=int,
+        default=5,
+        help="Number of training epochs",
     )
     parser.add_argument(
-        "--num_experts", type=int, default=8, help="Number of experts for MoE models"
+        "--batch_size", type=int, default=16, help="Batch size"
+    )
+    parser.add_argument(
+        "--seq_len", type=int, default=256, help="Sequence length"
+    )
+    parser.add_argument(
+        "--d_model", type=int, default=256, help="Model dimension"
+    )
+    parser.add_argument(
+        "--n_layers",
+        type=int,
+        default=4,
+        help="Number of transformer layers",
+    )
+    parser.add_argument(
+        "--num_experts",
+        type=int,
+        default=8,
+        help="Number of experts for MoE models",
     )
     parser.add_argument(
         "--num_selected",
@@ -890,7 +1017,9 @@ def main():
         default=10,
         help="Number of flow integration steps for FM-MoE",
     )
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument(
+        "--lr", type=float, default=1e-4, help="Learning rate"
+    )
     parser.add_argument(
         "--max_steps",
         type=int,
@@ -898,10 +1027,15 @@ def main():
         help="Max training steps (overrides epochs)",
     )
     parser.add_argument(
-        "--quick", action="store_true", help="Quick run with fewer steps for testing"
+        "--quick",
+        action="store_true",
+        help="Quick run with fewer steps for testing",
     )
     parser.add_argument(
-        "--output_dir", type=str, default="evals", help="Output directory for results"
+        "--output_dir",
+        type=str,
+        default="evals",
+        help="Output directory for results",
     )
 
     args = parser.parse_args()

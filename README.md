@@ -12,6 +12,41 @@ A PyTorch implementation of Flow Matching Mixture of Experts, a novel neural net
 
 Mixture of Experts (MoE) architectures have demonstrated remarkable success in scaling neural networks by activating only a subset of parameters per input. However, traditional MoE implementations rely on standard multi-layer perceptrons (MLPs) as expert networks, which may limit the expressiveness of learned transformations. This work introduces **Flow Matching Mixture of Experts (FM-MoE)**, a framework that replaces conventional MLP experts with flow matching networks. Each expert learns a continuous transformation through an ordinary differential equation (ODE), enabling more expressive feature mappings while maintaining the computational efficiency of sparse expert selection.
 
+
+## Installation
+
+```bash
+pip install mixture-of-flows
+```
+
+
+## Usage
+
+
+```python
+import torch
+from mof import FlowMatchingMoE, FlowMatchingMoEConfig
+
+# Define configuration
+config = FlowMatchingMoEConfig(
+    input_dim=512,
+    hidden_dim=2048,
+    num_experts=8,
+    num_selected=2,
+    flow_steps=10,
+)
+
+# Create model
+model = FlowMatchingMoE(config)
+
+# Forward pass
+x = torch.randn(4, 128, 512)  # (batch_size, seq_len, input_dim)
+output, aux_loss = model(x)
+
+print(f"Output shape: {output.shape}")  # (4, 128, 512)
+print(f"Auxiliary loss: {aux_loss.item():.6f}")
+```
+
 ---
 
 ## Introduction
@@ -221,57 +256,8 @@ PE(t, 2i+1) = cos(t / 10000^(2i/d))
 
 ---
 
-## Installation
 
-### Requirements
-
-- Python 3.8 or higher
-- PyTorch 2.0 or higher
-
-### Install from Source
-
-```bash
-git clone https://github.com/The-Swarm-Corporation/MoF.git
-cd MoF
-pip install -e .
-```
-
-### Dependencies
-
-```bash
-pip install torch>=2.0.0
-pip install matplotlib  # Optional, for visualization
-```
-
----
-
-## Usage
-
-### Basic Example
-
-```python
-import torch
-from mof import FlowMatchingMoE, FlowMatchingMoEConfig
-
-# Define configuration
-config = FlowMatchingMoEConfig(
-    input_dim=512,
-    hidden_dim=2048,
-    num_experts=8,
-    num_selected=2,
-    flow_steps=10,
-)
-
-# Create model
-model = FlowMatchingMoE(config)
-
-# Forward pass
-x = torch.randn(4, 128, 512)  # (batch_size, seq_len, input_dim)
-output, aux_loss = model(x)
-
-print(f"Output shape: {output.shape}")  # (4, 128, 512)
-print(f"Auxiliary loss: {aux_loss.item():.6f}")
-```
+# More Examples
 
 ### Integration with Transformer
 
