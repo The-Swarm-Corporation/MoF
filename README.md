@@ -14,18 +14,6 @@ Mixture of Experts (MoE) architectures have demonstrated remarkable success in s
 
 ---
 
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Architecture](#architecture)
-3. [Mathematical Formulation](#mathematical-formulation)
-4. [Installation](#installation)
-5. [Usage](#usage)
-6. [API Reference](#api-reference)
-7. [Configuration](#configuration)
-8. [Experimental Results](#experimental-results)
-9. [Citation](#citation)
-10. [License](#license)
 
 ---
 
